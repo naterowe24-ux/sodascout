@@ -4,6 +4,7 @@ module.exports = ({ config }) => ({
   ...config,
   ios: {
     ...config.ios,
+    usesAppleSignIn: true,
     config: {
       ...config.ios?.config,
       googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
@@ -28,5 +29,7 @@ module.exports = ({ config }) => ({
           'SodaScout uses your location to find the best fountain soda nearby.',
       },
     ],
+    'expo-apple-authentication',
+    'expo-web-browser',
   ],
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StarRating } from '../../components/Review/StarRating';
+import { SignInSheet } from '../../components/Auth/SignInSheet';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
+import { displayName } from '../../lib/auth';
 import { colors, fonts, radius, spacing } from '../../constants/theme';
 import type { SodaType } from '../../types';
 
@@ -39,6 +43,9 @@ const SODA_OPTIONS: SodaOption[] = [
 export default function ReviewScreen(): React.JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+
+  const { user } = useAuth();
+  const [showSignIn, setShowSignIn] = useState(false);
 
   const [locationName, setLocationName] = useState('');
   const [locationLoading, setLocationLoading] = useState(true);
@@ -66,6 +73,26 @@ export default function ReviewScreen(): React.JSX.Element {
   const [submitted, setSubmitted]     = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Success animation
+  const successScale = useRef(new Animated.Value(0)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!submitted) return;
+    Animated.parallel([
+      Animated.spring(successScale, {
+        toValue: 1,
+        tension: 55,
+        friction: 9,
+        useNativeDriver: true,
+      }),
+      Animated.timing(successOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [submitted]);
+
   // ── Load location name ──────────────────────────────────────────────────────
   useEffect(() => {
     supabase
@@ -89,7 +116,7 @@ export default function ReviewScreen(): React.JSX.Element {
 
     const { error } = await supabase.from('reviews').insert({
       location_id: id,
-      user_id: null,
+      user_id: user?.id ?? null,
       soda_type: sodaType!,
       score_crispiness: crispiness!,
       score_flavor: flavor!,
@@ -115,10 +142,12 @@ export default function ReviewScreen(): React.JSX.Element {
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-          <View style={styles.successWrap}>
-            <View style={styles.successCircle}>
+          <Animated.View style={[styles.successWrap, { opacity: successOpacity }]}>
+            <Animated.View
+              style={[styles.successCircle, { transform: [{ scale: successScale }] }]}
+            >
               <Text style={styles.successCheck}>✓</Text>
-            </View>
+            </Animated.View>
             <Text style={styles.successTitle}>SipReview Submitted!</Text>
             <Text style={styles.successSub}>
               Thanks for helping the soda community.{'\n'}
@@ -127,7 +156,7 @@ export default function ReviewScreen(): React.JSX.Element {
             <TouchableOpacity style={styles.successBtn} activeOpacity={0.8} onPress={() => router.back()}>
               <Text style={styles.successBtnText}>Back to Location</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </SafeAreaView>
       </>
     );
@@ -144,9 +173,18 @@ export default function ReviewScreen(): React.JSX.Element {
           <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.closeBtn}>
             <Text style={styles.closeBtnText}>✕</Text>
           </TouchableOpacity>
-          <Text style={styles.navTitle} numberOfLines={1}>
-            {locationLoading ? 'SipReview' : locationName}
-          </Text>
+          <View style={styles.navCenter}>
+            <Text style={styles.navTitle} numberOfLines={1}>
+              {locationLoading ? 'SipReview' : locationName}
+            </Text>
+            {user ? (
+              <Text style={styles.navSub}>{displayName(user)}</Text>
+            ) : (
+              <TouchableOpacity onPress={() => setShowSignIn(true)}>
+                <Text style={styles.navSignIn}>Sign in</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={{ width: 36 }} />
         </View>
 
@@ -293,6 +331,11 @@ export default function ReviewScreen(): React.JSX.Element {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        <SignInSheet
+          visible={showSignIn}
+          onDismiss={() => setShowSignIn(false)}
+          onSuccess={() => setShowSignIn(false)}
+        />
       </SafeAreaView>
     </>
   );
@@ -399,12 +442,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.grayMid,
   },
-  navTitle: {
+  navCenter: {
     flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  navTitle: {
     fontFamily: fonts.display.bold,
     fontSize: 16,
     color: '#1A1A1A',
     textAlign: 'center',
+  },
+  navSub: {
+    fontFamily: fonts.body.regular,
+    fontSize: 11,
+    color: colors.grayMid,
+  },
+  navSignIn: {
+    fontFamily: fonts.body.medium,
+    fontSize: 11,
+    color: colors.teal,
+    textDecorationLine: 'underline',
   },
 
   scroll: { flex: 1 },

@@ -89,9 +89,40 @@ export async function fetchLocationsNear(
   return { data: withDist, error: null };
 }
 
-// Placeholder — implemented in step 7
-export async function searchCity(
-  _query: string,
-): Promise<{ name: string; lat: number; lng: number }[]> {
-  return [];
+const CITY_SEARCH_URL =
+  `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/city-search`;
+const ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+export interface CitySuggestion {
+  place_id: string;
+  name: string;
+  description: string;
+}
+
+export async function searchCity(query: string): Promise<CitySuggestion[]> {
+  try {
+    const res = await fetch(
+      `${CITY_SEARCH_URL}?q=${encodeURIComponent(query)}`,
+      { headers: { apikey: ANON_KEY } },
+    );
+    if (!res.ok) return [];
+    return (await res.json()) as CitySuggestion[];
+  } catch {
+    return [];
+  }
+}
+
+export async function resolvePlaceCoords(
+  placeId: string,
+): Promise<{ lat: number; lng: number; name: string } | null> {
+  try {
+    const res = await fetch(
+      `${CITY_SEARCH_URL}?place_id=${encodeURIComponent(placeId)}`,
+      { headers: { apikey: ANON_KEY } },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as { lat: number; lng: number; name: string };
+  } catch {
+    return null;
+  }
 }

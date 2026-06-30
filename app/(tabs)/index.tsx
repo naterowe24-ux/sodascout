@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, ScrollView,
-  TouchableOpacity, ActivityIndicator, Dimensions, Platform,
+  TouchableOpacity, ActivityIndicator, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SodaMap } from '../../components/Map/SodaMap';
@@ -36,9 +36,14 @@ export default function ExploreScreen(): React.JSX.Element {
   const [activeFilter, setActiveFilter] = useState<FilterChip>('all');
   const [activeSort, setActiveSort]     = useState<SortTab>('top_rated');
   const [selectedLocation, setSelectedLocation] = useState<LocationWithDistance | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { locations, userCoords, loading, error, permissionDenied, refresh } =
     useNearbyLocations(activeFilter, activeSort);
+
+  useEffect(() => {
+    if (!loading) setIsRefreshing(false);
+  }, [loading]);
 
   const handleSelectPin = useCallback((loc: LocationWithDistance) => {
     setSelectedLocation(loc);
@@ -52,6 +57,11 @@ export default function ExploreScreen(): React.JSX.Element {
     setActiveFilter(f);
     setSelectedLocation(null);
   }, []);
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    refresh();
+  }, [refresh]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -112,7 +122,7 @@ export default function ExploreScreen(): React.JSX.Element {
         </View>
 
         {/* ── Location list ─────────────────────────────────────────────── */}
-        {loading ? (
+        {loading && !isRefreshing ? (
           <View style={styles.centre}>
             <ActivityIndicator color={colors.teal} size="large" />
           </View>
@@ -131,9 +141,8 @@ export default function ExploreScreen(): React.JSX.Element {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={<EmptyState filter={activeFilter} />}
-            // Pull-to-refresh
-            onRefresh={refresh}
-            refreshing={loading}
+            onRefresh={handleRefresh}
+            refreshing={isRefreshing}
           />
         )}
 

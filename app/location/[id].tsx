@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocationDetail } from '../../hooks/useLocationDetail';
+import { useAuth } from '../../hooks/useAuth';
+import { useSavedLocations } from '../../hooks/useSavedLocations';
+import { SignInSheet } from '../../components/Auth/SignInSheet';
 import { ScoreBreakdown } from '../../components/Location/ScoreBreakdown';
 import { WhatYouGet } from '../../components/Location/WhatYouGet';
 import { ReviewCard } from '../../components/Review/ReviewCard';
@@ -22,6 +26,20 @@ export default function LocationDetailScreen(): React.JSX.Element {
   const router  = useRouter();
   const { location, reviews, categoryAverages, distanceKm, loading, error, refresh } =
     useLocationDetail(id);
+  const { user } = useAuth();
+  const { isSaved, toggleSave } = useSavedLocations();
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave(): Promise<void> {
+    if (!user) {
+      setShowSignIn(true);
+      return;
+    }
+    setSaving(true);
+    await toggleSave(id);
+    setSaving(false);
+  }
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
@@ -167,11 +185,24 @@ export default function LocationDetailScreen(): React.JSX.Element {
             <Text style={styles.reviewBtnText}>+ Leave a SipReview</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.saveBtn} activeOpacity={0.7}>
-            <Text style={styles.saveBtnIcon}>🔖</Text>
+          <TouchableOpacity
+            style={[styles.saveBtn, isSaved(id) && styles.saveBtnActive]}
+            activeOpacity={0.7}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            <Text style={[styles.saveBtnIcon, { color: isSaved(id) ? colors.teal : colors.grayMid }]}>
+              {isSaved(id) ? '♥' : '♡'}
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+
+      <SignInSheet
+        visible={showSignIn}
+        onDismiss={() => setShowSignIn(false)}
+        onSuccess={() => setShowSignIn(false)}
+      />
     </>
   );
 }
@@ -403,7 +434,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.grayLight,
   },
+  saveBtnActive: {
+    backgroundColor: colors.tealLight,
+    borderColor: colors.teal,
+  },
   saveBtnIcon: {
-    fontSize: 20,
+    fontSize: 22,
   },
 });

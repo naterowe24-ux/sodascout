@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { colors, fonts, radius, spacing } from '../../constants/theme';
 import { SipScoreDisplay } from '../UI/SipScore';
 import { formatDistance } from '../../lib/maps';
-import type { LocationWithDistance, LocationType } from '../../types';
+import type { Location, LocationType } from '../../types';
 
 const TYPE_LABEL: Record<LocationType, string> = {
   gas_station: 'Gas Station',
@@ -18,10 +18,11 @@ const TYPE_ICON: Record<LocationType, string> = {
 };
 
 interface LocationCardProps {
-  location: LocationWithDistance;
+  location: Location & { _distanceKm?: number };
+  badge?: string;
 }
 
-export function LocationCard({ location }: LocationCardProps): React.JSX.Element {
+export function LocationCard({ location, badge }: LocationCardProps): React.JSX.Element {
   const router = useRouter();
 
   return (
@@ -58,9 +59,13 @@ export function LocationCard({ location }: LocationCardProps): React.JSX.Element
         </View>
       </View>
 
-      {/* Distance */}
+      {/* Badge / distance + chevron */}
       <View style={styles.distCol}>
-        <Text style={styles.dist}>{formatDistance(location._distanceKm)}</Text>
+        {badge ? (
+          <Text style={styles.badge}>{badge}</Text>
+        ) : location._distanceKm !== undefined ? (
+          <Text style={styles.dist}>{formatDistance(location._distanceKm)}</Text>
+        ) : null}
         <Text style={styles.chevron}>›</Text>
       </View>
     </TouchableOpacity>
@@ -149,6 +154,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body.regular,
     fontSize: 12,
     color: colors.grayMid,
+  },
+  badge: {
+    fontSize: 16,
+    lineHeight: 20,
   },
   chevron: {
     fontSize: 18,
